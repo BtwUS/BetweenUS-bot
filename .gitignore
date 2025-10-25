@@ -8,3 +8,6 @@
 
 # env
 .env
+tools/.env
+
+*.env

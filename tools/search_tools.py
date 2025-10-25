@@ -3,6 +3,10 @@
 import os
 from langchain_community.utilities import GoogleSearchAPIWrapper
 from langchain_community.tools import GoogleSearchRun
+from dotenv import load_dotenv
+load_dotenv('.env')
+
+
 
 # Initialize Google Search Tool
 search = GoogleSearchAPIWrapper(
