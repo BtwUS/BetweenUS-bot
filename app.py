@@ -71,12 +71,14 @@ def handle_app_mention_events(body, say):
             final_response = "I'm your Slack Conflict Analyst. Mention me with details about a conflict or channel ID to analyze."
         
         # Post the agent's response back to the Slack channel
-        say(text=final_response, thread_ts=body["event"]["ts"])
+        say(text=final_response)
+        # say(text=final_response, thread_ts=body["event"]["ts"])
         
     except Exception as e:
-        print(f"Error in conflict analyst agent: {e}")
-        error_message = "I encountered an issue while analyzing. Please provide the channel ID or conflict details, and I'll provide a neutral summary."
-        say(text=error_message, thread_ts=body["event"]["ts"])
+        print(f"Error in conflict resolution agent: {e}")
+        error_message = "I encountered an issue while processing your message. Let me try to help you find a solution anyway. What specific conflict or challenge are you facing?"
+        say(text=error_message)
+        # say(text=error_message, thread_ts=body["event"]["ts"])
 
 # --- Start the app ---
 if __name__ == "__main__":
