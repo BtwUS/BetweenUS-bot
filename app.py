@@ -113,8 +113,10 @@ def handle_app_mention_events(body, say):
         # The agent's response is an object; extract the last message
         final_message = response["messages"][-1].content
         
-        # Post the agent's response back to the Slack channel
-        say(text=final_message, thread_ts=body["event"]["ts"])
+        # # Post the agent's response back to the Slack channel
+        # say(text=final_message, thread_ts=body["event"]["ts"])
+        # Post the agent's response back to the Slack channel (NOT in thread)
+        say(text=final_message)
     except Exception as e:
         print(f"Error: {e}")
         say(f"An error occurred: {e}", thread_ts=body["event"]["ts"])
