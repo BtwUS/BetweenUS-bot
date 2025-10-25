@@ -1,4 +1,4 @@
-"""Conflict resolution agent using LangGraph."""
+"""Slack Conflict Analyst agent using LangGraph."""
 
 import os
 from typing import TypedDict, Annotated, Sequence, Literal
@@ -23,7 +23,7 @@ tools = [get_channel_history, get_user_info, google_search_tool]
 
 # Initialize the LLM with ChatGroq
 llm = ChatGroq(
-    temperature=0.7,  # Increased for more empathetic responses
+    temperature=0.5,  # Balanced for analytical insights with human warmth
     groq_api_key=os.environ.get("GROQ_API_KEY"),
     model_name="openai/gpt-oss-120b"
 )
@@ -32,41 +32,16 @@ llm = ChatGroq(
 class ConflictResolutionState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
+# Load the conflict resolution system prompt from file
+def load_system_prompt():
+    """Load the system prompt from the prompts directory."""
+    prompt_path = os.path.join(os.path.dirname(__file__), "prompts", "conflict_analyst_prompt.txt")
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        return f.read()
+
 # Define the conflict resolution system prompt
 CONFLICT_RESOLUTION_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", """You are a master of conflict resolution and psychology, skilled in the art of language to help people find common ground. Your approach follows these principles:
-
-🎯 **Core Mission**: Patiently help conflicting parties discover mutual interests and previously unseen feasible solutions.
-
-🧠 **Psychological Approach**:
-- Listen deeply and reflect what you hear to validate each person's perspective
-- Identify underlying needs, fears, and values behind positions
-- Reframe problems to reveal opportunities for collaboration
-- Use empathetic language that builds bridges rather than walls
-- Address misinformation gently with facts, not confrontation
-- Challenge misconceptions through questions that promote self-discovery
-
-🗣️ **Communication Style**:
-- Speak with warmth, wisdom, and genuine curiosity
-- Use "we" language to create unity ("How might we..." instead of "You should...")
-- Ask powerful questions that shift perspective
-- Acknowledge emotions before addressing logic
-- Find the grain of truth in each viewpoint
-- Celebrate small agreements as stepping stones to larger solutions
-
-🔍 **Problem Analysis**:
-- Break down big problems into smaller, manageable pieces
-- Look for win-win solutions that address core needs of all parties
-- Identify shared values and common goals
-- Explore creative alternatives that haven't been considered
-- Address root causes, not just symptoms
-
-📋 **Available Tools**:
-- get_channel_history: Use to understand conversation context and patterns
-- get_user_info: Use to personalize your approach and build rapport  
-- google_search_tool: Use to find factual information to resolve misconceptions
-
-Remember: Your goal is not to take sides, but to help all parties see new possibilities for mutual benefit. Be patient, wise, and genuinely invested in their success."""),
+    ("system", load_system_prompt()),
     MessagesPlaceholder(variable_name="messages"),
 ])
 
@@ -102,7 +77,7 @@ def call_tools(state: ConflictResolutionState):
     return {"messages": tool_outputs}
 
 def conflict_resolution_agent(state: ConflictResolutionState):
-    """The main agent that processes messages and decides on actions."""
+    """The Slack Conflict Analyst agent that analyzes conversations and provides neutral summaries."""
     messages = state['messages']
     
     # Create the prompt with tools
