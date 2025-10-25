@@ -13,13 +13,29 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMe
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 # Import tools from our tools package
-from tools import get_channel_history, get_user_info, google_search_tool
+from tools import (
+    get_channel_history, 
+    get_user_info, 
+    google_search_tool,
+    find_user_by_name,
+    get_mentioned_users,
+    list_channel_members,
+    summarize_channel_history
+)
 
 # Load environment variables
 load_dotenv()
 
 # Define the tools
-tools = [get_channel_history, get_user_info, google_search_tool]
+tools = [
+    get_channel_history, 
+    get_user_info, 
+    google_search_tool,
+    find_user_by_name,
+    get_mentioned_users,
+    list_channel_members,
+    summarize_channel_history
+]
 
 # Initialize the LLM with ChatGroq
 llm = ChatGroq(
