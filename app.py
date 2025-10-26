@@ -1,11 +1,12 @@
 import os
+import argparse
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, AIMessage
 
 # Import the agent executor from our agent module
-from agent import agent_executor, ConflictResolutionState
+from agent import agent_executor, ConflictResolutionState, set_prompt
 from tools.slack_tools import set_slack_client
 
 # Load environment variables from the .env file
@@ -82,4 +83,24 @@ def handle_app_mention_events(body, say):
 
 # --- Start the app ---
 if __name__ == "__main__":
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='BetweenUS Slack Conflict Analyst Bot')
+    parser.add_argument(
+        '--prompt',
+        type=str,
+        default='conflict_analyst_prompt',
+        help='Name of the prompt to use (without .txt extension). Available: conflict_analyst_prompt, prompt1, prompt2, prompt3, prompt4'
+    )
+    
+    args = parser.parse_args()
+    
+    # Set the selected prompt
+    try:
+        set_prompt(args.prompt)
+    except FileNotFoundError as e:
+        print(f"❌ Error: {e}")
+        print("Available prompts: conflict_analyst_prompt, prompt1, prompt2, prompt3, prompt4")
+        exit(1)
+    
+    print(f"🤖 Starting BetweenUS Slack Conflict Analyst Bot...")
     SocketModeHandler(app, os.environ.get("SLACK_APP_TOKEN")).start()

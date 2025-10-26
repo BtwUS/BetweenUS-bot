@@ -49,17 +49,28 @@ class ConflictResolutionState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
 # Load the conflict resolution system prompt from file
-def load_system_prompt():
-    """Load the system prompt from the prompts directory."""
-    prompt_path = os.path.join(os.path.dirname(__file__), "prompts", "conflict_analyst_prompt.txt")
+def load_system_prompt(prompt_name="conflict_analyst_prompt"):
+    """Load the system prompt from the prompts directory.
+    
+    Args:
+        prompt_name: Name of the prompt file (without .txt extension)
+    """
+    prompt_path = os.path.join(os.path.dirname(__file__), "prompts", f"{prompt_name}.txt")
+    if not os.path.exists(prompt_path):
+        raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
     with open(prompt_path, "r", encoding="utf-8") as f:
         return f.read()
 
+# Global variable to store the current prompt name
+CURRENT_PROMPT_NAME = "conflict_analyst_prompt"
+
 # Define the conflict resolution system prompt
-CONFLICT_RESOLUTION_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", load_system_prompt()),
-    MessagesPlaceholder(variable_name="messages"),
-])
+def get_prompt_template():
+    """Get the current prompt template based on the selected prompt."""
+    return ChatPromptTemplate.from_messages([
+        ("system", load_system_prompt(CURRENT_PROMPT_NAME)),
+        MessagesPlaceholder(variable_name="messages"),
+    ])
 
 def call_tools(state: ConflictResolutionState):
     """Execute tools when the agent decides to use them."""
@@ -97,7 +108,7 @@ def conflict_resolution_agent(state: ConflictResolutionState):
     messages = state['messages']
     
     # Create the prompt with tools
-    prompt = CONFLICT_RESOLUTION_PROMPT
+    prompt = get_prompt_template()
     chain = prompt | llm.bind_tools(tools)
     
     # Get response from LLM
@@ -146,3 +157,15 @@ def create_agent_executor():
 
 # Create the agent executor
 agent_executor = create_agent_executor()
+
+def set_prompt(prompt_name: str):
+    """Set the prompt to use for the agent.
+    
+    Args:
+        prompt_name: Name of the prompt file (without .txt extension)
+    """
+    global CURRENT_PROMPT_NAME
+    # Verify the prompt exists
+    load_system_prompt(prompt_name)  # Will raise error if not found
+    CURRENT_PROMPT_NAME = prompt_name
+    print(f"✓ Agent prompt set to: {prompt_name}")
