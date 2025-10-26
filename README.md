@@ -1,7 +1,26 @@
 # BetweenUS-bot
-The AI agent which can reconcile conflicts and help people understand each other better.
 
-A **Slack Conflict Analyst** bot that uses LangGraph and AI to analyze team conflicts, identify common ground, and suggest better communication strategies.
+**An active AI mediator that solves workplace miscommunication by treating it with the right medicine.**
+
+## The Problem
+Workplace conflict costs organizations hundreds of billions annually through lost productivity, project failures, and turnover. The root cause: **miscommunication**. Current tools fail because they're passive and one-size-fits-all—unable to distinguish between technical disputes (engineering arguments) and emotional-relational conflicts (trust breakdowns). Without understanding intent, they can't deliver the right solution.
+
+## The Solution
+**BetweenUS** is a multi-agentic Symmetry Mediator living inside Slack—not a chatbot, but an orchestrated two-stage system:
+
+**Stage 1: Triage & Investigation**  
+A Triage Agent pulls Slack history and user context to analyze the conflict's root:
+- Hidden common goals?
+- Researchable factual problem?
+- Technical/logical oversight?
+- Missing third solution?
+
+**Stage 2: Adaptive Response**  
+A Response Agent routes findings to specialized models:
+- **Emotional conflicts** → empathetic reflection building human trust
+- **Technical conflicts** → objective, data-driven insights solving actual problems
+
+**Result:** Context-specific interventions that identify conflict roots (Fact vs. Emotion), deliver human-centric warmth for relational issues or actionable insights for technical disputes, and surface the "better third solution" teams in conflict miss—turning friction into progress.
 
 ## Features
 
