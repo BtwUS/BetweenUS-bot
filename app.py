@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, AIMessage
 
 # Import the agent executor from our agent module
-from agent import agent_executor, ConflictResolutionState, set_prompt
+from agent import agent_executor, ConflictResolutionState, set_prompt, enable_classification
 from tools.slack_tools import set_slack_client
 
 # Load environment variables from the .env file
@@ -88,19 +88,37 @@ if __name__ == "__main__":
     parser.add_argument(
         '--prompt',
         type=str,
-        default='conflict_analyst_prompt',
-        help='Name of the prompt to use (without .txt extension). Available: conflict_analyst_prompt, prompt1, prompt2, prompt3, prompt4'
+        default=None,
+        help='(Optional) Override automatic classification and force a specific prompt. Available: conflict_analyst_prompt, prompt1, prompt2, prompt3, prompt4. If not specified, the bot will automatically classify conversations.'
+    )
+    parser.add_argument(
+        '--no-classify',
+        action='store_true',
+        help='Disable automatic classification and use the default conflict_analyst_prompt or the prompt specified with --prompt'
     )
     
     args = parser.parse_args()
     
-    # Set the selected prompt
-    try:
-        set_prompt(args.prompt)
-    except FileNotFoundError as e:
-        print(f"❌ Error: {e}")
-        print("Available prompts: conflict_analyst_prompt, prompt1, prompt2, prompt3, prompt4")
-        exit(1)
+    # Set the selected prompt only if explicitly specified
+    if args.prompt:
+        try:
+            set_prompt(args.prompt)
+            print(f"🎯 Using fixed prompt: {args.prompt}")
+        except FileNotFoundError as e:
+            print(f"❌ Error: {e}")
+            print("Available prompts: conflict_analyst_prompt, prompt1, prompt2, prompt3, prompt4")
+            exit(1)
+    elif args.no_classify:
+        set_prompt('conflict_analyst_prompt')
+        print("🎯 Using default prompt without classification: conflict_analyst_prompt")
+    else:
+        enable_classification()
+        print("🤖 Automatic conversation classification enabled!")
+        print("   The bot will analyze each conversation and choose the appropriate prompt:")
+        print("   • prompt1: Non-work, emotional/personal conflicts")
+        print("   • prompt2: Non-work, logical/technical debates")
+        print("   • prompt3: Work-related, technical disagreements")
+        print("   • prompt4: Work-related, emotional/interpersonal conflicts")
     
-    print(f"🤖 Starting BetweenUS Slack Conflict Analyst Bot...")
+    print(f"\n🚀 Starting BetweenUS Slack Conflict Analyst Bot...")
     SocketModeHandler(app, os.environ.get("SLACK_APP_TOKEN")).start()

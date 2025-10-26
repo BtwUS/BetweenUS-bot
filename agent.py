@@ -1,7 +1,8 @@
 """Slack Conflict Analyst agent using LangGraph."""
 
 import os
-from typing import TypedDict, Annotated, Sequence, Literal
+import json
+from typing import TypedDict, Annotated, Sequence, Literal, Optional
 import operator
 from dotenv import load_dotenv
 
@@ -9,7 +10,7 @@ from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langchain_groq import ChatGroq
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 # Import tools from our tools package
@@ -44,9 +45,18 @@ llm = ChatGroq(
     model_name="openai/gpt-oss-120b"
 )
 
+# Initialize a separate LLM for classification (lower temperature for more consistent classification)
+classifier_llm = ChatGroq(
+    temperature=0.1,  # Lower temperature for more deterministic classification
+    groq_api_key=os.environ.get("GROQ_API_KEY"),
+    model_name="openai/gpt-oss-120b"
+)
+
 # Define the agent state
 class ConflictResolutionState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
+    prompt_type: Optional[str]  # Will store "prompt1", "prompt2", "prompt3", or "prompt4"
+    classification_reasoning: Optional[str]  # Stores why this classification was chosen
 
 # Load the conflict resolution system prompt from file
 def load_system_prompt(prompt_name="conflict_analyst_prompt"):
@@ -63,6 +73,7 @@ def load_system_prompt(prompt_name="conflict_analyst_prompt"):
 
 # Global variable to store the current prompt name
 CURRENT_PROMPT_NAME = "conflict_analyst_prompt"
+USE_CLASSIFICATION = True  # Global flag to enable/disable automatic classification
 
 # Define the conflict resolution system prompt
 def get_prompt_template():
@@ -71,6 +82,78 @@ def get_prompt_template():
         ("system", load_system_prompt(CURRENT_PROMPT_NAME)),
         MessagesPlaceholder(variable_name="messages"),
     ])
+
+def get_dynamic_prompt_template(prompt_type: str):
+    """Get a prompt template for a specific prompt type.
+    
+    Args:
+        prompt_type: The prompt type (e.g., "prompt1", "prompt2", etc.)
+    """
+    return ChatPromptTemplate.from_messages([
+        ("system", load_system_prompt(prompt_type)),
+        MessagesPlaceholder(variable_name="messages"),
+    ])
+
+def classifier_node(state: ConflictResolutionState):
+    """Classify the conversation to determine which prompt to use."""
+    # Check if classification is disabled
+    if not USE_CLASSIFICATION:
+        return {
+            "prompt_type": CURRENT_PROMPT_NAME,
+            "classification_reasoning": "Classification disabled, using fixed prompt"
+        }
+    
+    messages = state['messages']
+    
+    # Load the classifier prompt
+    classifier_prompt_text = load_system_prompt("classifier_prompt")
+    
+    # Get the user's message (should be the first HumanMessage)
+    user_message = None
+    for msg in messages:
+        if isinstance(msg, HumanMessage):
+            user_message = msg.content
+            break
+    
+    if not user_message:
+        # Fallback to default prompt if no user message found
+        return {"prompt_type": "conflict_analyst_prompt", "classification_reasoning": "No user message found, using default"}
+    
+    # Create the classification prompt
+    classification_messages = [
+        SystemMessage(content=classifier_prompt_text),
+        HumanMessage(content=f"Analyze and classify this conversation:\n\n{user_message}")
+    ]
+    
+    # Get classification from LLM
+    try:
+        response = classifier_llm.invoke(classification_messages)
+        response_text = response.content.strip()
+        
+        # Parse the JSON response
+        # Remove markdown code blocks if present
+        if response_text.startswith("```json"):
+            response_text = response_text.split("```json")[1].split("```")[0].strip()
+        elif response_text.startswith("```"):
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+        
+        classification_result = json.loads(response_text)
+        prompt_type = classification_result.get("classification", "PROMPT1").lower()
+        reasoning = classification_result.get("reasoning", "No reasoning provided")
+        
+        print(f"🔍 Classification: {prompt_type} - {reasoning}")
+        
+        return {
+            "prompt_type": prompt_type,
+            "classification_reasoning": reasoning
+        }
+    except Exception as e:
+        print(f"⚠️ Classification error: {e}, using default prompt")
+        # Fallback to a reasonable default
+        return {
+            "prompt_type": "prompt1",
+            "classification_reasoning": f"Classification failed: {str(e)}, defaulting to prompt1"
+        }
 
 def call_tools(state: ConflictResolutionState):
     """Execute tools when the agent decides to use them."""
@@ -106,9 +189,10 @@ def call_tools(state: ConflictResolutionState):
 def conflict_resolution_agent(state: ConflictResolutionState):
     """The Slack Conflict Analyst agent that analyzes conversations and provides neutral summaries."""
     messages = state['messages']
+    prompt_type = state.get('prompt_type', CURRENT_PROMPT_NAME)
     
-    # Create the prompt with tools
-    prompt = get_prompt_template()
+    # Use the dynamically selected prompt
+    prompt = get_dynamic_prompt_template(prompt_type)
     chain = prompt | llm.bind_tools(tools)
     
     # Get response from LLM
@@ -133,13 +217,17 @@ def create_agent_executor():
     workflow = StateGraph(ConflictResolutionState)
 
     # Add nodes
+    workflow.add_node("classifier", classifier_node)
     workflow.add_node("agent", conflict_resolution_agent)
     workflow.add_node("tools", call_tools)
 
-    # Set entry point
-    workflow.set_entry_point("agent")
+    # Set entry point to classifier
+    workflow.set_entry_point("classifier")
+    
+    # Classifier always goes to agent
+    workflow.add_edge("classifier", "agent")
 
-    # Add conditional edges
+    # Add conditional edges from agent
     workflow.add_conditional_edges(
         "agent",
         should_continue,
@@ -164,8 +252,15 @@ def set_prompt(prompt_name: str):
     Args:
         prompt_name: Name of the prompt file (without .txt extension)
     """
-    global CURRENT_PROMPT_NAME
+    global CURRENT_PROMPT_NAME, USE_CLASSIFICATION
     # Verify the prompt exists
     load_system_prompt(prompt_name)  # Will raise error if not found
     CURRENT_PROMPT_NAME = prompt_name
+    USE_CLASSIFICATION = False  # Disable classification when prompt is explicitly set
     print(f"✓ Agent prompt set to: {prompt_name}")
+
+def enable_classification():
+    """Enable automatic conversation classification."""
+    global USE_CLASSIFICATION
+    USE_CLASSIFICATION = True
+    print(f"✓ Automatic classification enabled")
