@@ -35,6 +35,7 @@ Ask yourself:
 - Are they solving different sub-problems within the larger goal?
 - Can we use APIs, interfaces, or clear boundaries to let both work?
 - What pattern (microservices, layered architecture, plugins, etc.) enables both?
+- You can use google search to reactively find a solution
 
 **Step 5: Identify Practical Benefits**
 How does the bridge solution:
