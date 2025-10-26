@@ -72,9 +72,9 @@ python app.py
 
 Mention the bot in Slack:
 ```
-@BetweenUS analyze the discussion in #engineering
+@BetweenUS analyze the discussion in #engineering.
 
-@BetweenUS help us understand channel C0123ABC
+@BetweenUS say something.
 ```
 
 ## Output Format
@@ -94,10 +94,3 @@ The bot provides structured, actionable responses:
 To modify the bot's behavior, edit `prompts/conflict_analyst_prompt.txt` and restart the bot.
 
 See `PROMPT_CHANGES.md` for detailed documentation on the prompt system.
-
-## Testing
-
-Run tests with:
-```bash
-python test_analyst.py
-```
